@@ -9,6 +9,7 @@ BRp.calculateArrowAngles = function( edge ){
   var isMultibezier = rs.edgeType === 'multibezier';
   var isSegments = rs.edgeType === 'segments';
   var isCompound = rs.edgeType === 'compound';
+  var isArc = rs.edgeType === 'arc';
   var isSelf = rs.edgeType === 'self';
 
   // Displacement gives direction for arrowhead orientation
@@ -43,6 +44,12 @@ BRp.calculateArrowAngles = function( edge ){
 
     dispX = startX - bX;
     dispY = startY - bY;
+  } else if ( isArc ) {
+    let { arcParams: { x, y, radius }, startAngle, endAngle } = rs;
+    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.1);
+
+    dispX = startX - bX
+    dispY = startY - bY
   } else {
     dispX = startX - midX;
     dispY = startY - midY;
@@ -154,7 +161,14 @@ BRp.calculateArrowAngles = function( edge ){
 
     dispX = endX - bX;
     dispY = endY - bY;
-  } else {
+  } else if (isArc) {
+    let { arcParams: { x, y, radius }, startAngle, endAngle } = rs;
+
+    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.9);
+
+    dispX = endX - bX
+    dispY = endY - bY
+  } else { 
     dispX = endX - midX;
     dispY = endY - midY;
   }
