@@ -72,10 +72,11 @@ BRp.findEndpoints = function( edge ){
   let taxi = curveStyle === 'taxi';
   let self = et === 'self' || et === 'compound';
   let bezier = et === 'bezier' || et === 'multibezier' || self;
+  let arc = et === 'arc';
   let multi = et !== 'bezier';
   let lines = et === 'straight' || et === 'segments';
   let segments = et === 'segments';
-  let hasEndpts = bezier || multi || lines;
+  let hasEndpts = bezier || multi || lines || arc;
   let overrideEndpts = self || taxi;
   let srcManEndpt = edge.pstyle('source-endpoint');
   let srcManEndptVal = overrideEndpts ? 'outside-to-node' : srcManEndpt.value;
@@ -103,6 +104,18 @@ BRp.findEndpoints = function( edge ){
 
     p1 = tgtArrowFromPt;
     p2 = srcArrowFromPt;
+  } else if (arc) {
+    let control = { x: rs.ctrlpts[0], y: rs.ctrlpts[1] };
+    rs.arcParams = math.getCircleFrom3Points(srcPos, control, tgtPos);
+
+    let { x, y } = rs.arcParams;
+    let { startAngle, endAngle } = math.getArcAngles(x, y, srcPos, control, tgtPos);
+    let sense = startAngle >= endAngle ? +1 : -1;
+
+    // Instead of points on the curve, we pick points on the tangents at the 
+    // endpoints, for better results.
+    p1 = [tgtPos.x - sense * (tgtPos.y - y), tgtPos.y + sense * (tgtPos.x - x)];
+    p2 = [srcPos.x + sense * (srcPos.y - y), srcPos.y - sense * (srcPos.x - x)];
   }
 
   if( tgtManEndptVal === 'inside-to-node' ){
@@ -288,6 +301,18 @@ BRp.findEndpoints = function( edge ){
 
   rs.arrowStartX = arrowStart[0];
   rs.arrowStartY = arrowStart[1];
+
+  if (arc) {
+    let { x, y } = rs.arcParams;
+    let start = { x: rs.startX, y: rs.startY };
+    let end = { x: rs.endX, y: rs.endY };
+    let control = { x: rs.ctrlpts[0], y: rs.ctrlpts[1] };
+
+    let { startAngle, endAngle } = math.getArcAngles(x, y, start, control, end);
+
+    rs.startAngle = startAngle;
+    rs.endAngle = endAngle;
+  }
 
   if( hasEndpts ){
     if( !is.number( rs.startX ) || !is.number( rs.startY ) || !is.number( rs.endX ) || !is.number( rs.endY ) ){
