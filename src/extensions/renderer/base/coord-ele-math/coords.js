@@ -191,6 +191,16 @@ BRp.findNearestElements = function( x, y, interactiveElementsOnly, isTouch ){
           return true;
         }
       }
+    } else if (rs.edgeType === 'arc') {
+      let { arcParams, startAngle, endAngle } = rs;
+
+      if (
+        math.inArcVicinity(arcParams.x, arcParams.y, arcParams.radius, x, y, width2)
+        && widthSq > (sqDist = math.sqDistToArc(arcParams.x, arcParams.y, arcParams.radius, startAngle, endAngle,{x,y}))
+      ) {
+        addEle(edge, sqDist);
+        return true;
+      }
     }
 
     // if we're close to the edge but didn't hit it, maybe we hit its arrows
