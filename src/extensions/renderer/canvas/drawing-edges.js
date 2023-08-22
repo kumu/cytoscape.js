@@ -212,6 +212,13 @@ CRp.drawEdgePath = function( edge, context, pts, type ){
           context.lineTo( pts[ i ], pts[ i + 1] );
         }
         break;
+
+      case 'arc':
+        const { arcParams: { x, y, radius }, startAngle, endAngle } = rs;
+        const clockwise = startAngle > endAngle;
+
+        context.arc(x, y, radius, startAngle, endAngle, clockwise);
+        break;
     }
   }
 
