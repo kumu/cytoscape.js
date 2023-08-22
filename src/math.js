@@ -1386,3 +1386,182 @@ export const getBarrelCurveConstants = ( width, height ) => ({
   widthOffset: Math.min(100, 0.25 * width),
   ctrlPtOffsetPct: 0.05
 });
+
+/**
+ * @typedef {Object} Vector - A structured set of x- and y-coordinates
+ * @property {number} x - The x-component of the point
+ * @property {number} y - The y-component of the point
+ *
+ * @typedef {Object} Circle - The parameters defining a circle
+ * @property {number} x - The x-component of the circle center
+ * @property {number} y - The y-component of the circle center
+ * @property {number} radius - The radius of the circle
+ */
+
+/**
+ * Given three points, find the unique circle arc that passes through the 
+ * points, in the order they were provided given.
+ *
+ * @param {Vector} start - The start of the circle arc
+ * @param {Vector} control - The middle of the circle arc
+ * @param {Vector} end - The endpoint of the circle arc
+ * @returns {Circle} The parameters defining the circle
+ */
+export const getCircleFrom3Points = (start, control, end) => {
+  const { x: x1, y: y1 } = start;
+  const { x: x2, y: y2 } = control;
+  const { x: x3, y: y3 } = end;
+
+  const a21 = (y2 - y1) / (x2 - x1);
+  const a31 = (y3 - y1) / (x3 - x1);
+  const b21 = 1 / a21;
+  const b31 = 1 / a31;
+  const xb21 = (x1 + x2) / 2;
+  const yb21 = (y1 + y2) / 2;
+  const xb31 = (x1 + x3) / 2;
+  const yb31 = (y1 + y3) / 2;
+
+  // Deal with edge-cases first, fall back to the general expression last
+  const centerX = y3 == y1
+    ? xb31
+    : y2 == y1 
+      ? xb21 
+      : (b31 * xb31 - b21 * xb21 + yb31 - yb21) / (b31 - b21);
+
+  // Deal with edge-cases first, fall back to the general expression last
+  const centerY = x3 == x1
+    ? yb31
+    : x2 == x1 
+      ? yb21 
+      : (a31 * yb31 - a21 * yb21 + xb31 - xb21) / (a31 - a21);
+
+  const radius = Math.sqrt((x3 - centerX) ** 2 + (y3 - centerY) ** 2);
+
+  return { x: centerX, y: centerY, radius };
+};
+
+/**
+ * Given a circle center and three points on the circle, return the 
+ * start and end angles that define a circle arc passing through all three
+ * points.
+ *
+ * @param x {number}- The x-coordinate of the circle center
+ * @param y {number}- The y-coordinate of the circle center
+ * @param start {Vector}- The initial point of the arc
+ * @param control {Vector}- The control point of the arc
+ * @param end {Vector}- The final point of the arc
+ * @returns {Object} The startAngle and endAngle of the arc
+ */
+export const getArcAngles = (x, y, start, control, end) => {
+  const startAngle = angle({ x: start.x - x, y: start.y - y });
+  const controlAngle = angle({ x: control.x - x, y: control.y - y });
+  let endAngle = angle({ x: end.x - x, y: end.y - y });
+
+  // Correct the endAngle to make sure we get the correct circle arc
+  if (!between(startAngle, endAngle, controlAngle)) {
+    const correction = startAngle > endAngle ? 2 * Math.PI : - 2 * Math.PI;
+    endAngle += correction;
+  } 
+
+  return { startAngle, endAngle }
+}
+
+/**
+ * Return the right-handed angle between a vector and the x-axis, as an angle
+ * from 0 (inclusive) to 2pi (exclusive).
+ *
+ * @param {Vector} vec - The vector whose angle to measure
+ * @returns {number} The angle as a value between [0, 2pi).
+ */
+export const angle = (vec) => Math.atan2(vec.y, vec.x);
+
+/**
+ * Return the coordinate of a point on the provided arc, lying at a fractional
+ * distance along the way.
+ *
+ * @param {number} x - The x-coordinate of the arc's circle center
+ * @param {number} y - The y-coordinate of the arc's circle center
+ * @param {number} radius - The radius of the arc's circle
+ * @param {number} startAngle - The angle corresponding to the start of the arc
+ * @param {number} endAngle - The angle corresponding to the end of the arc
+ * @param {number} t - The parameter coordinate ([0, 1]) along the arc we want 
+ * to find the corresponding point for. t=0 corresponds to the start of the arc,
+ * t=1 corresponds to the end.
+ *
+ * @returns {Vector} The point on the arc
+ */
+export const arcAt = (x, y, radius, startAngle, endAngle, t) => {
+  const angle = (1 - t) * startAngle + t * endAngle;
+  return { x: x + radius * Math.cos(angle), y: y + radius * Math.sin(angle) };
+};
+
+/**
+ * Find the square distance from a given point to an arc segment
+ *
+ * @param {number} x - The x-coordinate of the arc's circle center
+ * @param {number} y - The y-coordinate of the arc's circle center
+ * @param {number} radius - The radius of the arc's circle
+ * @param {number} startAngle - The angle corresponding to the start of the arc
+ * @param {number} endAngle - The angle corresponding to the end of the arc
+ * @param {Vector} pt - The point whose distance to the arc we wish to measure
+ *
+ * @returns {number} - The square distance to the arc
+ */
+export const sqDistToArc = (x, y, radius, startAngle, endAngle, pt) => {
+  const ptAngle = angle({x: pt.x - x, y: pt.y - y });
+
+  // ptAngle might be off by +- 2pi
+  const insideArc = [ptAngle - 2*Math.PI, ptAngle, ptAngle + 2*Math.PI]
+    .some(angle => between(startAngle, endAngle, angle));
+
+  if (insideArc) { // Return distance to circle arc
+    return (dist(pt, { x, y }) - radius) ** 2 
+  } else { // Return distance to the nearest endpoint
+    const startPt = { 
+      x: x + radius * Math.cos(startAngle),
+      y: y + radius * Math.sin(startAngle),
+    };
+
+    const endPt = { 
+      x: x + radius * Math.cos(endAngle),
+      y: y + radius * Math.sin(endAngle),
+    };
+
+    return Math.min(
+      sqdist(startPt, pt),
+      sqdist(endPt, pt),
+    );
+  }
+};
+
+/**
+ * Perform a rough check to see whether a provided point is close to a 
+ * given arc.
+ *
+ * TODO: Currently, we simply check whether the point lies inside the arc's 
+ * circle. This is a very crude approximation, and ideally we'd have a narrower
+ * bounding box.
+ *
+ * @param {number} centerX - The x-position of the arc's circle center
+ * @param {number} centerY - The y-position of the arc's circle center
+ * @param {number} radius - The radius of the arc's circle
+ * @param {number} x - The x-coordinate of the point we're interested in
+ * @param {number} y - The y-coordinate of the point we're interested in
+ * @param {number} tolerance - An additional margin around the 
+ */
+export const inArcVicinity = (centerX, centerY, radius, x, y, tolerance) => {
+  return (centerX - x) ** 2 + (centerY - y) ** 2 <= (radius + tolerance) ** 2;
+};
+
+/**
+ * Check whether a value lies within a desired interval, regardless of whether
+ * the bounds are ordered small-to-large or large-to-small
+ *
+ * @param {number} start - The first bound of the interval
+ * @param {number} end - The secound bound of the interval
+ * @param {number} testValue - The value we wish to test for inclusion
+ */
+export const between = (start, end, testValue) => {
+  return start <= testValue && testValue <= end 
+    || start >= testValue && testValue >= end;
+}
