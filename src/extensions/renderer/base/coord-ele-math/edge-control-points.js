@@ -244,6 +244,31 @@ BRp.findBezierPoints = function( edge, pairInfo, i, edgeIsUnbundled, edgeIsSwapp
   }
 };
 
+BRp.findArcPoints = function( edge, pairInfo){
+  const rs = edge._private.rscratch;
+  const { vectorNormInverse, posPts, intersectionPts } = pairInfo;
+  const edgeDistances = edge.pstyle('edge-distances').value;
+  const ctrlptDists = edge.pstyle('control-point-distances');
+
+  rs.edgeType = 'arc';
+  rs.ctrlpts = [];
+  rs.edgeType = 'arc';
+
+  let ctrlptDist = ctrlptDists.pfValue?.[0] ?? 0;
+
+  // Arc is ill-defined for distance == 0, so we use a tiny value instead.
+  if (Math.abs(ctrlptDist) < 0.01) {
+    ctrlptDist = 0.01;
+  }
+
+  const endPts = edgeDistances === 'node-position' ? posPts : intersectionPts;
+  const midX = 0.5 * (endPts.x1 + endPts.x2); 
+  const midY = 0.5 * (endPts.y1 + endPts.y2); 
+
+  rs.ctrlpts.push(midX + vectorNormInverse.x * ctrlptDist);
+  rs.ctrlpts.push(midY + vectorNormInverse.y * ctrlptDist);
+};
+
 BRp.findTaxiPoints = function( edge, pairInfo ){
   // Taxicab geometry with two turns maximum
 
@@ -518,7 +543,6 @@ BRp.tryToCorrectInvalidPoints = function( edge, pairInfo ){
       // recalc endpts
       this.findEndpoints( edge );
     }
-
   }
 };
 
@@ -582,8 +606,12 @@ BRp.storeAllpts = function( edge ){
       rs.midX = rs.segpts[ i1 ];
       rs.midY = rs.segpts[ i1 + 1];
     }
+  } else if (rs.edgeType === 'unbundled-arc') {
+    rs.midX = rs.ctrlpts[0]
+    rs.midY = rs.ctrlpts[1]
 
-
+    rs.allpts = [];
+    rs.allpts.push( rs.startX, rs.startY, rs.midX, rs.midY, rs.endX, rs.endY );
   }
 };
 
@@ -650,7 +678,12 @@ BRp.findEdgeControlPoints = function( edges ){
       continue;
     }
 
-    let edgeIsUnbundled = curveStyle === 'unbundled-bezier' || curveStyle === 'segments' || curveStyle === 'straight' || curveStyle === 'straight-triangle' || curveStyle === 'taxi';
+    let edgeIsUnbundled = curveStyle === 'unbundled-arc' 
+      || curveStyle === 'unbundled-bezier' 
+      || curveStyle === 'segments' 
+      || curveStyle === 'straight' 
+      || curveStyle === 'straight-triangle' 
+      || curveStyle === 'taxi';
     let edgeIsBezier = curveStyle === 'unbundled-bezier' || curveStyle === 'bezier';
     let src = _p.source;
     let tgt = _p.target;
@@ -735,7 +768,10 @@ BRp.findEdgeControlPoints = function( edges ){
       const edge = pairInfo.eles[i];
       const rs = edge[0]._private.rscratch;
       const curveStyle = edge.pstyle( 'curve-style' ).value;
-      const edgeIsUnbundled = curveStyle === 'unbundled-bezier' || curveStyle === 'segments' || curveStyle === 'taxi';
+      const edgeIsUnbundled = curveStyle === 'unbundled-arc' 
+        || curveStyle === 'unbundled-bezier' 
+        || curveStyle === 'segments' 
+        || curveStyle === 'taxi';
 
       // whether the normalised pair order is the reverse of the edge's src-tgt order
       const edgeIsSwapped = !src.same(edge.source());
@@ -868,6 +904,9 @@ BRp.findEdgeControlPoints = function( edges ){
       ){
         this.findStraightEdgePoints(edge);
 
+      } else if (curveStyle === 'unbundled-arc') {
+        rs.edgeType = 'arc';
+        this.findArcPoints(edge, passedPairInfo, i, edgeIsUnbundled);
       } else {
         this.findBezierPoints(edge, passedPairInfo, i, edgeIsUnbundled, edgeIsSwapped);
       }
@@ -920,7 +959,7 @@ BRp.getControlPoints = function( edge ){
   let rs = edge[0]._private.rscratch;
   let type = rs.edgeType;
 
-  if( type === 'bezier' || type === 'multibezier' || type === 'self' || type === 'compound' ){
+  if( type === 'bezier' || type === 'multibezier' || type === 'self' || type === 'compound' || type === 'arc' ){
     this.recalculateRenderedStyle( edge );
 
     return getPts( rs.ctrlpts );
