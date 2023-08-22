@@ -690,7 +690,7 @@ elesfn.remove = function( notifyRenderer = true, removeFromPool = true ){
 
         removeParallelRef(pllEdge);
 
-        if( pllEdge.isBundledBezier() ){
+        if( pllEdge.isBundledBezier() || pllEdge.isBundledArc() ){
           pllEdge.dirtyBoundingBoxCache();
         }
       }

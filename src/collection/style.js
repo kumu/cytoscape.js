@@ -442,6 +442,12 @@ elesfn.isBundledBezier = cachePrototypeStyleFunction('isBundledBezier', function
   return !this.removed() && this.pstyle('curve-style').value === 'bezier' && this.takesUpSpace();
 });
 
+elesfn.isBundledArc = cachePrototypeStyleFunction('isBundledArc', function(){
+  if( !this.cy().styleEnabled() ){ return false; }
+
+  return !this.removed() && this.pstyle('curve-style').value === 'arc' && this.takesUpSpace();
+});
+
 elesfn.bypass = elesfn.css = elesfn.style;
 elesfn.renderedCss = elesfn.renderedStyle;
 elesfn.removeBypass = elesfn.removeCss = elesfn.removeStyle;

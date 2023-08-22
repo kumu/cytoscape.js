@@ -244,16 +244,19 @@ BRp.findBezierPoints = function( edge, pairInfo, i, edgeIsUnbundled, edgeIsSwapp
   }
 };
 
-BRp.findArcPoints = function( edge, pairInfo){
+BRp.findArcPoints = function( edge, pairInfo, i, edgeIsSwapped){
   const rs = edge._private.rscratch;
   const { vectorNormInverse, posPts, intersectionPts } = pairInfo;
   const edgeDistances = edge.pstyle('edge-distances').value;
   const ctrlptDists = edge.pstyle('control-point-distances');
+  const stepSize = edge.pstyle('control-point-step-size')?.pfValue ?? 40;
 
   rs.ctrlpts = [];
   rs.edgeType = 'arc';
 
-  let ctrlptDist = ctrlptDists?.pfValue?.[0] ?? 0;
+  // Default to stepsize
+  let ctrlptDist = ctrlptDists?.pfValue?.[0] 
+    ?? (0.5 - pairInfo.eles.length / 2 + i) * stepSize * (edgeIsSwapped ? -1 : 1);
 
   // Arc is ill-defined for distance == 0, so we use a tiny value instead.
   if (Math.abs(ctrlptDist) < 0.01) {
@@ -684,6 +687,7 @@ BRp.findEdgeControlPoints = function( edges ){
       || curveStyle === 'straight-triangle' 
       || curveStyle === 'taxi';
     let edgeIsBezier = curveStyle === 'unbundled-bezier' || curveStyle === 'bezier';
+    let edgeIsArc = curveStyle === 'unbundled-arc' || curveStyle === 'arc';
     let src = _p.source;
     let tgt = _p.target;
     let srcIndex = src.poolIndex();
@@ -709,6 +713,10 @@ BRp.findEdgeControlPoints = function( edges ){
     if( edgeIsBezier ){
       tableEntry.hasBezier = true;
     }
+
+    if( edgeIsArc ){
+      tableEntry.hasArc = true;
+    }
   }
 
   // for each pair (src, tgt), create the ctrl pts
@@ -719,7 +727,9 @@ BRp.findEdgeControlPoints = function( edges ){
     let swappedpairInfo;
 
     if( !pairInfo.hasUnbundled ){
-      let pllEdges = pairInfo.eles[0].parallelEdges().filter(e => e.isBundledBezier());
+      let pllEdges = pairInfo.eles[0]
+        .parallelEdges()
+        .filter(e => e.isBundledBezier() || e.isBundledArc());
 
       util.clearArray( pairInfo.eles );
 
@@ -775,7 +785,7 @@ BRp.findEdgeControlPoints = function( edges ){
       // whether the normalised pair order is the reverse of the edge's src-tgt order
       const edgeIsSwapped = !src.same(edge.source());
 
-      if( !pairInfo.calculatedIntersection && src !== tgt && ( pairInfo.hasBezier || pairInfo.hasUnbundled ) ){
+      if( !pairInfo.calculatedIntersection && src !== tgt && ( pairInfo.hasBezier || pairInfo.hasUnbundled || pairInfo.hasArc ) ){
         pairInfo.calculatedIntersection = true;
 
         // pt outside src shape to calc distance/displacement from src to tgt
@@ -893,6 +903,9 @@ BRp.findEdgeControlPoints = function( edges ){
       } else if( curveStyle === 'taxi' ){
         this.findTaxiPoints(edge, passedPairInfo);
 
+      } else if (curveStyle === 'arc' || curveStyle === 'unbundled-arc') {
+        this.findArcPoints(edge, passedPairInfo, i, edgeIsSwapped);
+
       } else if(
         curveStyle === 'straight'
         || (
@@ -903,9 +916,6 @@ BRp.findEdgeControlPoints = function( edges ){
       ){
         this.findStraightEdgePoints(edge);
 
-      } else if (curveStyle === 'unbundled-arc') {
-        rs.edgeType = 'arc';
-        this.findArcPoints(edge, passedPairInfo, i, edgeIsUnbundled);
       } else {
         this.findBezierPoints(edge, passedPairInfo, i, edgeIsUnbundled, edgeIsSwapped);
       }
