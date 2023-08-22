@@ -250,11 +250,10 @@ BRp.findArcPoints = function( edge, pairInfo){
   const edgeDistances = edge.pstyle('edge-distances').value;
   const ctrlptDists = edge.pstyle('control-point-distances');
 
-  rs.edgeType = 'arc';
   rs.ctrlpts = [];
   rs.edgeType = 'arc';
 
-  let ctrlptDist = ctrlptDists.pfValue?.[0] ?? 0;
+  let ctrlptDist = ctrlptDists?.pfValue?.[0] ?? 0;
 
   // Arc is ill-defined for distance == 0, so we use a tiny value instead.
   if (Math.abs(ctrlptDist) < 0.01) {
@@ -606,7 +605,7 @@ BRp.storeAllpts = function( edge ){
       rs.midX = rs.segpts[ i1 ];
       rs.midY = rs.segpts[ i1 + 1];
     }
-  } else if (rs.edgeType === 'unbundled-arc') {
+  } else if (rs.edgeType === 'arc') {
     rs.midX = rs.ctrlpts[0]
     rs.midY = rs.ctrlpts[1]
 
