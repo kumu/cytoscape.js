@@ -17,6 +17,15 @@ function pushBezierPts( r, edge, pts ){
   }
 }
 
+function pushArcPts( r, edge, x, y, radius, startAngle, endAngle ){
+  const _p = edge._private;
+  let { arcPts } = _p.rstyle;
+
+  for(let fraction of r.arcProjPcts){
+    arcPts.push(math.arcAt(x, y, radius, startAngle, endAngle, fraction));
+  }
+}
+
 BRp.storeEdgeProjections = function( edge ){
   var _p = edge._private;
   var rs = _p.rscratch;
@@ -26,6 +35,7 @@ BRp.storeEdgeProjections = function( edge ){
   _p.rstyle.bezierPts = null;
   _p.rstyle.linePts = null;
   _p.rstyle.haystackPts = null;
+  _p.rstyle.arcPts = null;
 
   if( et === 'multibezier' ||  et === 'bezier' ||  et === 'self' ||  et === 'compound' ){
     _p.rstyle.bezierPts = [];
@@ -49,6 +59,10 @@ BRp.storeEdgeProjections = function( edge ){
       { x: hpts[0], y: hpts[1] },
       { x: hpts[2], y: hpts[3] }
     ];
+  } else if (et === 'arc') {
+    _p.rstyle.arcPts = [];
+
+    pushArcPts( this, edge, _p.rscratch.arcParams);
   }
 
   _p.rstyle.arrowWidth = this.getArrowWidth( edge.pstyle('width').pfValue, edge.pstyle( 'arrow-scale' ).value )
