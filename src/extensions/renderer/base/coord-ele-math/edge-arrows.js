@@ -46,7 +46,7 @@ BRp.calculateArrowAngles = function( edge ){
     dispY = startY - bY;
   } else if ( isArc ) {
     let { arcParams: { x, y, radius }, startAngle, endAngle } = rs;
-    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.1);
+    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.01);
 
     dispX = startX - bX
     dispY = startY - bY
@@ -164,7 +164,7 @@ BRp.calculateArrowAngles = function( edge ){
   } else if (isArc) {
     let { arcParams: { x, y, radius }, startAngle, endAngle } = rs;
 
-    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.9);
+    const {x: bX, y: bY } = math.arcAt(x, y, radius, startAngle, endAngle, 0.99);
 
     dispX = endX - bX
     dispY = endY - bY
